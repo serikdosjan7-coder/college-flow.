@@ -1,0 +1,144 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserRole {
+  STUDENT
+  TEACHER
+  ADMIN
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  password  String
+  name      String
+  role      UserRole @default(STUDENT)
+  avatar    String?
+  group     String?
+  course    Int?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  teachingSubjects Subject[] @relation("TeacherSubjects")
+  grades          Grade[]
+  uploadedFiles   File[]
+  swapPosts       SwapPost[]
+
+  @@map("users")
+}
+
+model Subject {
+  id        Int      @id @default(autoincrement())
+  title     String
+  credits   Int      @default(3)
+  teacherId Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  teacher   User       @relation("TeacherSubjects", fields: [teacherId], references: [id])
+  grades    Grade[]
+  schedules Schedule[]
+
+  @@map("subjects")
+}
+
+model Grade {
+  id        Int      @id @default(autoincrement())
+  value     Int      // 2, 3, 4, 5
+  studentId Int
+  subjectId Int
+  date      DateTime @default(now())
+  createdAt DateTime @default(now())
+
+  // Relations
+  student User    @relation(fields: [studentId], references: [id])
+  subject Subject @relation(fields: [subjectId], references: [id])
+
+  @@map("grades")
+}
+
+model Schedule {
+  id        Int      @id @default(autoincrement())
+  day       String   // "Понедельник", "Вторник", etc.
+  startTime String   // "08:00"
+  endTime   String   // "09:30"
+  room      String
+  subjectId Int
+  group     String
+  isLocked  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  subject Subject @relation(fields: [subjectId], references: [id])
+
+  @@map("schedules")
+}
+
+model File {
+  id         Int      @id @default(autoincrement())
+  name       String
+  url        String
+  size       String
+  type       String
+  category   String
+  uploaderId Int
+  downloads  Int      @default(0)
+  likes      Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  // Relations
+  uploader User @relation(fields: [uploaderId], references: [id])
+
+  @@map("files")
+}
+
+model SwapPost {
+  id           Int      @id @default(autoincrement())
+  skillOffer   String
+  skillWanted  String
+  description  String
+  authorId     Int
+  responses    Int      @default(0)
+  rating       Float    @default(0.0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  author User @relation(fields: [authorId], references: [id])
+
+  @@map("swap_posts")
+}
+
+model News {
+  id          Int      @id @default(autoincrement())
+  title       String
+  description String
+  category    String
+  imageUrl    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("news")
+}
+
+model SystemSettings {
+  id              Int     @id @default(autoincrement())
+  isDiaryLocked   Boolean @default(false)
+  isScheduleLocked Boolean @default(false)
+  alertMessage    String?
+  showAlert       Boolean @default(false)
+
+  @@map("system_settings")
+}
