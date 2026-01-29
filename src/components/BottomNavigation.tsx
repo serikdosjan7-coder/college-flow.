@@ -1,9 +1,9 @@
 'use client';
 import { Home, Calendar, Users, ArrowLeftRight, User, Shield } from 'lucide-react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { useRoleStore } from '@/lib/roleStore';
+import { useRoleStore, useAuthStore } from '@/lib/roleStore';
 
 const getNavItems = (currentRole: string) => {
   const baseItems = [
@@ -28,10 +28,22 @@ const getNavItems = (currentRole: string) => {
 
 export default function BottomNavigation() {
   const pathname = usePathname();
+  const router = useRouter();
   const { currentRole } = useRoleStore();
+  const { isAuthenticated } = useAuthStore();
   const navItems = getNavItems(currentRole);
 
-  console.log('🧭 Navigation rendered with role:', currentRole);
+  console.log('🧭 Navigation rendered with role:', currentRole, 'authenticated:', isAuthenticated);
+
+  const handleNavClick = (href: string, e: React.MouseEvent) => {
+    // If clicking Profile and user is not authenticated, redirect to signup
+    if (href === '/profile' && !isAuthenticated) {
+      e.preventDefault();
+      console.log('🔒 User not authenticated, redirecting to signup');
+      router.push('/signup');
+      return;
+    }
+  };
 
   return (
     <motion.nav 
@@ -48,7 +60,7 @@ export default function BottomNavigation() {
           const isAdmin = item.href === '/admin';
           
           return (
-            <Link key={item.href} href={item.href}>
+            <Link key={item.href} href={item.href} onClick={(e) => handleNavClick(item.href, e)}>
               <motion.div
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.95 }}
