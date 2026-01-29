@@ -36,11 +36,11 @@ export default function BottomNavigation() {
   console.log('🧭 Navigation rendered with role:', currentRole, 'authenticated:', isAuthenticated);
 
   const handleNavClick = (href: string, e: React.MouseEvent) => {
-    // If clicking Profile and user is not authenticated, redirect to signup
+    // If clicking Profile and user is not authenticated, redirect to login
     if (href === '/profile' && !isAuthenticated) {
       e.preventDefault();
-      console.log('🔒 User not authenticated, redirecting to signup');
-      router.push('/signup');
+      console.log('🔒 User not authenticated, redirecting to login');
+      router.push('/login?redirect=/profile');
       return;
     }
   };

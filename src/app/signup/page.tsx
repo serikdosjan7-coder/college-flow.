@@ -27,15 +27,33 @@ export default function SignupPage() {
     setIsLoading(true);
     setError('');
 
-    const success = await signup(formData);
-    
-    if (success) {
-      router.push('/');
-    } else {
-      setError('Ошибка при регистрации');
+    // Basic validation
+    if (!formData.name || !formData.email || !formData.password) {
+      setError('Пожалуйста, заполните все обязательные поля');
+      setIsLoading(false);
+      return;
     }
-    
-    setIsLoading(false);
+
+    if (formData.password.length < 6) {
+      setError('Пароль должен содержать минимум 6 символов');
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      const result = await signup(formData);
+      
+      if (result.success) {
+        console.log('✅ Signup successful, redirecting to home');
+        router.push('/');
+      } else {
+        setError(result.error || 'Ошибка при регистрации');
+      }
+    } catch (error) {
+      setError('Ошибка подключения к серверу');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {

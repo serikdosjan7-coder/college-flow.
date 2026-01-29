@@ -9,7 +9,24 @@ export async function POST(request: NextRequest) {
     // Validate input
     if (!email || !password || !name) {
       return NextResponse.json(
-        { error: 'Email, password, and name are required' },
+        { error: 'Email, пароль и имя обязательны' },
+        { status: 400 }
+      );
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return NextResponse.json(
+        { error: 'Неверный формат email' },
+        { status: 400 }
+      );
+    }
+
+    // Validate password length
+    if (password.length < 6) {
+      return NextResponse.json(
+        { error: 'Пароль должен содержать минимум 6 символов' },
         { status: 400 }
       );
     }
@@ -17,19 +34,19 @@ export async function POST(request: NextRequest) {
     // Check if Prisma is available
     if (!prisma) {
       return NextResponse.json(
-        { error: 'Database not available' },
+        { error: 'База данных недоступна' },
         { status: 503 }
       );
     }
 
     // Check if user already exists
     const existingUser = await prisma.user.findUnique({
-      where: { email }
+      where: { email: email.toLowerCase() }
     });
 
     if (existingUser) {
       return NextResponse.json(
-        { error: 'User with this email already exists' },
+        { error: 'Пользователь с таким email уже существует' },
         { status: 400 }
       );
     }
@@ -40,11 +57,11 @@ export async function POST(request: NextRequest) {
     // Create user
     const user = await prisma.user.create({
       data: {
-        email,
+        email: email.toLowerCase(),
         password: hashedPassword,
-        name,
+        name: name.trim(),
         role,
-        group,
+        group: group?.trim() || null,
         course: course ? parseInt(course) : null
       }
     });
@@ -59,15 +76,18 @@ export async function POST(request: NextRequest) {
     // Return user data (without password) and token
     const { password: _, ...userWithoutPassword } = user;
 
+    console.log('✅ New user registered:', user.email, 'Role:', user.role);
+
     return NextResponse.json({
       user: userWithoutPassword,
-      token
+      token,
+      message: 'Регистрация прошла успешно'
     });
 
   } catch (error) {
     console.error('Signup error:', error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'Внутренняя ошибка сервера' },
       { status: 500 }
     );
   }

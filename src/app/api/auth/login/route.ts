@@ -9,7 +9,7 @@ export async function POST(request: NextRequest) {
     // Validate input
     if (!email || !password) {
       return NextResponse.json(
-        { error: 'Email and password are required' },
+        { error: 'Email и пароль обязательны' },
         { status: 400 }
       );
     }
@@ -17,19 +17,19 @@ export async function POST(request: NextRequest) {
     // Check if Prisma is available
     if (!prisma) {
       return NextResponse.json(
-        { error: 'Database not available' },
+        { error: 'База данных недоступна' },
         { status: 503 }
       );
     }
 
     // Find user
     const user = await prisma.user.findUnique({
-      where: { email }
+      where: { email: email.toLowerCase() }
     });
 
     if (!user) {
       return NextResponse.json(
-        { error: 'Invalid credentials' },
+        { error: 'Ошибка в пароле или логине' },
         { status: 401 }
       );
     }
@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
 
     if (!isValidPassword) {
       return NextResponse.json(
-        { error: 'Invalid credentials' },
+        { error: 'Ошибка в пароле или логине' },
         { status: 401 }
       );
     }
@@ -54,15 +54,18 @@ export async function POST(request: NextRequest) {
     // Return user data (without password) and token
     const { password: _, ...userWithoutPassword } = user;
 
+    console.log('✅ User logged in:', user.email, 'Role:', user.role);
+
     return NextResponse.json({
       user: userWithoutPassword,
-      token
+      token,
+      message: 'Успешный вход в систему'
     });
 
   } catch (error) {
     console.error('Login error:', error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'Внутренняя ошибка сервера' },
       { status: 500 }
     );
   }

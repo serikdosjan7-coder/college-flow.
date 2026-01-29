@@ -1,9 +1,9 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Mail, Lock, LogIn, Eye, EyeOff } from 'lucide-react';
 import { useAuthStore } from '@/lib/roleStore';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 
 export default function LoginPage() {
@@ -13,23 +13,43 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const { login } = useAuthStore();
+  const { login, isAuthenticated } = useAuthStore();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectTo = searchParams.get('redirect') || '/';
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      router.push(redirectTo);
+    }
+  }, [isAuthenticated, router, redirectTo]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError('');
 
-    const success = await login(email, password);
-    
-    if (success) {
-      router.push('/');
-    } else {
-      setError('Неверный email или пароль');
+    if (!email || !password) {
+      setError('Пожалуйста, заполните все поля');
+      setIsLoading(false);
+      return;
     }
-    
-    setIsLoading(false);
+
+    try {
+      const result = await login(email, password);
+      
+      if (result.success) {
+        console.log('✅ Login successful, redirecting to:', redirectTo);
+        router.push(redirectTo);
+      } else {
+        setError(result.error || 'Ошибка входа в систему');
+      }
+    } catch (error) {
+      setError('Ошибка подключения к серверу');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -115,7 +135,8 @@ export default function LoginPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="w-full bg-white/10 border border-white/20 rounded-lg pl-10 pr-4 py-3 text-white placeholder-white/50 focus:border-cyan-400/50 focus:outline-none transition-all duration-300"
-                  placeholder="your@email.com"
+                  placeholder="student@college.ru"
+                  disabled={isLoading}
                   required
                 />
               </div>
@@ -134,12 +155,14 @@ export default function LoginPage() {
                   onChange={(e) => setPassword(e.target.value)}
                   className="w-full bg-white/10 border border-white/20 rounded-lg pl-10 pr-12 py-3 text-white placeholder-white/50 focus:border-cyan-400/50 focus:outline-none transition-all duration-300"
                   placeholder="••••••••"
+                  disabled={isLoading}
                   required
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3 top-1/2 transform -translate-y-1/2 text-white/50 hover:text-white/80 transition-colors"
+                  disabled={isLoading}
                 >
                   {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
@@ -161,11 +184,18 @@ export default function LoginPage() {
             <motion.button
               type="submit"
               disabled={isLoading}
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              className="w-full bg-gradient-to-r from-cyan-500 to-purple-500 text-white py-3 rounded-lg font-medium hover:shadow-[0_0_30px_rgba(34,211,238,0.4)] transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+              whileHover={{ scale: isLoading ? 1 : 1.02 }}
+              whileTap={{ scale: isLoading ? 1 : 0.98 }}
+              className="w-full bg-gradient-to-r from-cyan-500 to-purple-500 text-white py-3 rounded-lg font-medium hover:shadow-[0_0_30px_rgba(34,211,238,0.4)] transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
-              {isLoading ? 'Вход...' : 'Войти'}
+              {isLoading ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  Вход...
+                </>
+              ) : (
+                'Войти'
+              )}
             </motion.button>
           </form>
 
@@ -177,6 +207,16 @@ export default function LoginPage() {
                 Зарегистрироваться
               </Link>
             </p>
+          </div>
+
+          {/* Demo Accounts */}
+          <div className="mt-6 p-4 bg-white/5 rounded-lg border border-white/10">
+            <p className="text-white/60 text-xs text-center mb-2">Тестовые аккаунты:</p>
+            <div className="text-xs text-white/50 space-y-1">
+              <div>Студент: student@test.ru / password123</div>
+              <div>Преподаватель: teacher@test.ru / password123</div>
+              <div>Админ: admin@test.ru / password123</div>
+            </div>
           </div>
         </div>
       </motion.div>

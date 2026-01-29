@@ -17,10 +17,13 @@ interface AuthState {
   user: User | null;
   token: string | null;
   isAuthenticated: boolean;
-  login: (email: string, password: string) => Promise<boolean>;
-  signup: (userData: any) => Promise<boolean>;
+  isLoading: boolean;
+  error: string | null;
+  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  signup: (userData: any) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
-  switchRole: (role: UserRole) => void;
+  clearError: () => void;
+  checkAuth: () => Promise<boolean>;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -29,8 +32,12 @@ export const useAuthStore = create<AuthState>()(
       user: null,
       token: null,
       isAuthenticated: false,
+      isLoading: false,
+      error: null,
 
       login: async (email: string, password: string) => {
+        set({ isLoading: true, error: null });
+        
         try {
           const response = await fetch('/api/auth/login', {
             method: 'POST',
@@ -40,26 +47,34 @@ export const useAuthStore = create<AuthState>()(
             body: JSON.stringify({ email, password }),
           });
 
+          const data = await response.json();
+
           if (response.ok) {
-            const data = await response.json();
             set({
               user: data.user,
               token: data.token,
               isAuthenticated: true,
+              isLoading: false,
+              error: null,
             });
             console.log('✅ Login successful:', data.user.role);
-            return true;
+            return { success: true };
           } else {
-            console.error('❌ Login failed');
-            return false;
+            set({ isLoading: false, error: data.error });
+            console.error('❌ Login failed:', data.error);
+            return { success: false, error: data.error };
           }
         } catch (error) {
+          const errorMessage = 'Ошибка подключения к серверу';
+          set({ isLoading: false, error: errorMessage });
           console.error('❌ Login error:', error);
-          return false;
+          return { success: false, error: errorMessage };
         }
       },
 
       signup: async (userData: any) => {
+        set({ isLoading: true, error: null });
+        
         try {
           const response = await fetch('/api/auth/signup', {
             method: 'POST',
@@ -69,22 +84,28 @@ export const useAuthStore = create<AuthState>()(
             body: JSON.stringify(userData),
           });
 
+          const data = await response.json();
+
           if (response.ok) {
-            const data = await response.json();
             set({
               user: data.user,
               token: data.token,
               isAuthenticated: true,
+              isLoading: false,
+              error: null,
             });
             console.log('✅ Signup successful:', data.user.role);
-            return true;
+            return { success: true };
           } else {
-            console.error('❌ Signup failed');
-            return false;
+            set({ isLoading: false, error: data.error });
+            console.error('❌ Signup failed:', data.error);
+            return { success: false, error: data.error };
           }
         } catch (error) {
+          const errorMessage = 'Ошибка подключения к серверу';
+          set({ isLoading: false, error: errorMessage });
           console.error('❌ Signup error:', error);
-          return false;
+          return { success: false, error: errorMessage };
         }
       },
 
@@ -93,18 +114,50 @@ export const useAuthStore = create<AuthState>()(
           user: null,
           token: null,
           isAuthenticated: false,
+          error: null,
         });
         console.log('👋 Logged out');
+        // Redirect to login page
+        window.location.href = '/login';
       },
 
-      switchRole: (role: UserRole) => {
-        const { user } = get();
-        if (user) {
-          console.log('🔄 Switching role to:', role);
-          set({
-            user: { ...user, role },
+      clearError: () => {
+        set({ error: null });
+      },
+
+      checkAuth: async () => {
+        const { token } = get();
+        if (!token) {
+          return false;
+        }
+
+        try {
+          const response = await fetch('/api/auth/verify', {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+            },
           });
-          console.log('✅ Role switched successfully to:', role);
+
+          if (response.ok) {
+            const data = await response.json();
+            set({
+              user: data.user,
+              isAuthenticated: true,
+            });
+            return true;
+          } else {
+            // Token is invalid, clear auth state
+            set({
+              user: null,
+              token: null,
+              isAuthenticated: false,
+            });
+            return false;
+          }
+        } catch (error) {
+          console.error('❌ Auth check error:', error);
+          return false;
         }
       },
     }),
@@ -116,11 +169,11 @@ export const useAuthStore = create<AuthState>()(
 
 // For backward compatibility with existing role store
 export const useRoleStore = () => {
-  const { user, switchRole } = useAuthStore();
+  const { user } = useAuthStore();
   return {
     currentRole: user?.role || 'STUDENT',
     userName: user?.name || 'Гость',
     userEmail: user?.email || '',
-    switchRole,
+    isAuthenticated: !!user,
   };
 };
