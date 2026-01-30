@@ -1,17 +1,29 @@
 'use client';
-import { Home, Calendar, Users, ArrowLeftRight, User, Shield } from 'lucide-react';
+import { Home, Calendar, Users, ArrowLeftRight, User, Shield, LogIn, UserPlus } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { useRoleStore, useAuthStore } from '@/lib/roleStore';
 
-const getNavItems = (currentRole: string) => {
+const getNavItems = (currentRole: string, isAuthenticated: boolean, userName: string) => {
+  if (!isAuthenticated) {
+    // Guest navigation - show login/register buttons
+    return [
+      { href: '/', icon: Home, label: 'Home' },
+      { href: '/schedule', icon: Calendar, label: 'Schedule' },
+      { href: '/hub', icon: Users, label: 'Hub' },
+      { href: '/swap', icon: ArrowLeftRight, label: 'Swap' },
+      { href: '/login', icon: LogIn, label: 'Войти', isAuth: true },
+    ];
+  }
+
+  // Authenticated navigation
   const baseItems = [
     { href: '/', icon: Home, label: 'Home' },
     { href: '/schedule', icon: Calendar, label: 'Schedule' },
     { href: '/hub', icon: Users, label: 'Hub' },
     { href: '/swap', icon: ArrowLeftRight, label: 'Swap' },
-    { href: '/profile', icon: User, label: 'Profile' },
+    { href: '/profile', icon: User, label: userName.split(' ')[0] || 'Profile' },
   ];
 
   // Add admin panel for admins
@@ -19,7 +31,7 @@ const getNavItems = (currentRole: string) => {
     return [
       ...baseItems.slice(0, -1), // All except Profile
       { href: '/admin', icon: Shield, label: 'Admin' },
-      { href: '/profile', icon: User, label: 'Profile' },
+      { href: '/profile', icon: User, label: userName.split(' ')[0] || 'Profile' },
     ];
   }
 
@@ -30,19 +42,16 @@ export default function BottomNavigation() {
   const pathname = usePathname();
   const router = useRouter();
   const { currentRole } = useRoleStore();
-  const { isAuthenticated } = useAuthStore();
-  const navItems = getNavItems(currentRole);
+  const { isAuthenticated, user } = useAuthStore();
+  const userName = user?.name || 'Гость';
+  
+  const navItems = getNavItems(currentRole, isAuthenticated, userName);
 
-  console.log('🧭 Navigation rendered with role:', currentRole, 'authenticated:', isAuthenticated);
+  console.log('🧭 Navigation rendered with role:', currentRole, 'authenticated:', isAuthenticated, 'user:', userName);
 
   const handleNavClick = (href: string, e: React.MouseEvent) => {
-    // If clicking Profile and user is not authenticated, redirect to login
-    if (href === '/profile' && !isAuthenticated) {
-      e.preventDefault();
-      console.log('🔒 User not authenticated, redirecting to login');
-      router.push('/login?redirect=/profile');
-      return;
-    }
+    // Profile page now handles guest users internally, no need to redirect here
+    // Middleware will handle other protected routes
   };
 
   return (
@@ -58,6 +67,7 @@ export default function BottomNavigation() {
           const isActive = pathname === item.href;
           const Icon = item.icon;
           const isAdmin = item.href === '/admin';
+          const isAuth = item.isAuth || false;
           
           return (
             <Link key={item.href} href={item.href} onClick={(e) => handleNavClick(item.href, e)}>
@@ -65,11 +75,13 @@ export default function BottomNavigation() {
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.95 }}
                 className={`
-                  flex flex-col items-center justify-center p-2 rounded-xl transition-all duration-300 relative
+                  flex flex-col items-center justify-center p-2 rounded-xl transition-all duration-300 relative min-w-[60px]
                   ${isActive 
                     ? isAdmin 
                       ? 'bg-yellow-500/20 border border-yellow-400/30 shadow-[0_0_20px_rgba(255,215,0,0.3)]'
-                      : 'bg-white/10 border border-white/15 shadow-[0_0_20px_rgba(34,211,238,0.3)]'
+                      : isAuth
+                        ? 'bg-green-500/20 border border-green-400/30 shadow-[0_0_20px_rgba(34,197,94,0.3)]'
+                        : 'bg-white/10 border border-white/15 shadow-[0_0_20px_rgba(34,211,238,0.3)]'
                     : 'hover:bg-white/5'
                   }
                 `}
@@ -78,7 +90,9 @@ export default function BottomNavigation() {
                   border: isActive 
                     ? isAdmin 
                       ? '2px solid rgba(255, 215, 0, 0.3)' 
-                      : '0.5px solid rgba(255,255,255,0.15)'
+                      : isAuth
+                        ? '2px solid rgba(34, 197, 94, 0.3)'
+                        : '0.5px solid rgba(255,255,255,0.15)'
                     : 'none'
                 }}
               >
@@ -87,7 +101,9 @@ export default function BottomNavigation() {
                     isActive 
                       ? isAdmin 
                         ? 'text-yellow-400' 
-                        : 'text-cyan-400'
+                        : isAuth
+                          ? 'text-green-400'
+                          : 'text-cyan-400'
                       : 'text-white/70 hover:text-white'
                   }`} 
                 />
@@ -96,7 +112,9 @@ export default function BottomNavigation() {
                     isActive 
                       ? isAdmin 
                         ? 'text-yellow-400' 
-                        : 'text-cyan-400'
+                        : isAuth
+                          ? 'text-green-400'
+                          : 'text-cyan-400'
                       : 'text-white/70'
                   }`}
                 >
@@ -106,7 +124,11 @@ export default function BottomNavigation() {
                   <motion.div
                     layoutId="activeTab"
                     className={`absolute -top-1 left-1/2 transform -translate-x-1/2 w-1 h-1 rounded-full ${
-                      isAdmin ? 'bg-yellow-400 shadow-[0_0_10px_rgba(255,215,0,0.8)]' : 'bg-cyan-400 shadow-[0_0_10px_rgba(34,211,238,0.8)]'
+                      isAdmin 
+                        ? 'bg-yellow-400 shadow-[0_0_10px_rgba(255,215,0,0.8)]' 
+                        : isAuth
+                          ? 'bg-green-400 shadow-[0_0_10px_rgba(34,197,94,0.8)]'
+                          : 'bg-cyan-400 shadow-[0_0_10px_rgba(34,211,238,0.8)]'
                     }`}
                   />
                 )}
@@ -115,6 +137,22 @@ export default function BottomNavigation() {
           );
         })}
       </div>
+
+      {/* Register button for guests (top right) */}
+      {!isAuthenticated && (
+        <Link href="/signup">
+          <motion.div
+            initial={{ opacity: 0, scale: 0 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.3 }}
+            className="absolute -top-12 right-4 bg-purple-500/20 backdrop-blur-[20px] border border-purple-400/30 rounded-full p-2 shadow-[0_0_20px_rgba(168,85,247,0.3)]"
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.95 }}
+          >
+            <UserPlus className="w-5 h-5 text-purple-400" />
+          </motion.div>
+        </Link>
+      )}
     </motion.nav>
   );
 }

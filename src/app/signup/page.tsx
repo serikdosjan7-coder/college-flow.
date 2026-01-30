@@ -44,8 +44,8 @@ export default function SignupPage() {
       const result = await signup(formData);
       
       if (result.success) {
-        console.log('✅ Signup successful, redirecting to home');
-        router.push('/');
+        console.log('✅ Signup successful, redirecting to profile');
+        router.push('/profile');
       } else {
         setError(result.error || 'Ошибка при регистрации');
       }

@@ -18,12 +18,14 @@ interface AuthState {
   token: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  isInitialized: boolean;
   error: string | null;
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   signup: (userData: any) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
   clearError: () => void;
   checkAuth: () => Promise<boolean>;
+  initializeAuth: () => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -33,6 +35,7 @@ export const useAuthStore = create<AuthState>()(
       token: null,
       isAuthenticated: false,
       isLoading: false,
+      isInitialized: false,
       error: null,
 
       login: async (email: string, password: string) => {
@@ -62,12 +65,15 @@ export const useAuthStore = create<AuthState>()(
           } else {
             set({ isLoading: false, error: data.error });
             console.error('❌ Login failed:', data.error);
+            // Show alert for invalid credentials
+            alert('Invalid username or password');
             return { success: false, error: data.error };
           }
         } catch (error) {
-          const errorMessage = 'Ошибка подключения к серверу';
+          const errorMessage = 'Connection error. Please try again.';
           set({ isLoading: false, error: errorMessage });
           console.error('❌ Login error:', error);
+          alert(errorMessage);
           return { success: false, error: errorMessage };
         }
       },
@@ -158,6 +164,66 @@ export const useAuthStore = create<AuthState>()(
         } catch (error) {
           console.error('❌ Auth check error:', error);
           return false;
+        }
+      },
+
+      initializeAuth: async () => {
+        const { token } = get();
+        
+        console.log('🔄 Initializing authentication...');
+        set({ isLoading: true });
+
+        if (!token) {
+          console.log('❌ No token found, user not authenticated');
+          set({ 
+            isLoading: false, 
+            isInitialized: true,
+            isAuthenticated: false,
+            user: null 
+          });
+          return;
+        }
+
+        try {
+          const response = await fetch('/api/auth/verify', {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+            },
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            set({
+              user: data.user,
+              isAuthenticated: true,
+              isLoading: false,
+              isInitialized: true,
+              error: null,
+            });
+            console.log('✅ Authentication restored for user:', data.user.name, 'Role:', data.user.role);
+          } else {
+            // Token is invalid, clear auth state
+            console.log('❌ Token invalid, clearing auth state');
+            set({
+              user: null,
+              token: null,
+              isAuthenticated: false,
+              isLoading: false,
+              isInitialized: true,
+              error: null,
+            });
+          }
+        } catch (error) {
+          console.error('❌ Auth initialization error:', error);
+          set({
+            user: null,
+            token: null,
+            isAuthenticated: false,
+            isLoading: false,
+            isInitialized: true,
+            error: 'Ошибка проверки аутентификации',
+          });
         }
       },
     }),

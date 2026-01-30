@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
 
     if (!user) {
       return NextResponse.json(
-        { error: 'Ошибка в пароле или логине' },
+        { error: 'Invalid username or password' },
         { status: 401 }
       );
     }
@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
 
     if (!isValidPassword) {
       return NextResponse.json(
-        { error: 'Ошибка в пароле или логине' },
+        { error: 'Invalid username or password' },
         { status: 401 }
       );
     }

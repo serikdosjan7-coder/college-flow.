@@ -2,9 +2,8 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { verifyToken } from '@/lib/auth';
 
-// Define protected routes
+// Define protected routes (profile is excluded as it handles guests internally)
 const protectedRoutes = [
-  '/profile',
   '/admin',
   '/add-schedule',
   '/hub',
@@ -16,7 +15,8 @@ const protectedRoutes = [
 const publicRoutes = [
   '/',
   '/login',
-  '/signup'
+  '/signup',
+  '/profile'  // Profile page handles guests internally
 ];
 
 // Define admin-only routes
@@ -29,7 +29,7 @@ const teacherRoutes = [
   '/add-schedule'
 ];
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   
   // Skip middleware for API routes, static files, and Next.js internals
@@ -39,14 +39,15 @@ export function middleware(request: NextRequest) {
     pathname.startsWith('/favicon.ico') ||
     pathname.startsWith('/sw.js') ||
     pathname.startsWith('/manifest.json') ||
-    pathname.includes('.')
+    pathname.includes('.') && !pathname.endsWith('/')
   ) {
     return NextResponse.next();
   }
 
   // Get token from cookies or Authorization header
-  const token = request.cookies.get('auth-token')?.value || 
-                request.headers.get('authorization')?.replace('Bearer ', '');
+  const authToken = request.cookies.get('auth-token')?.value;
+  const authHeader = request.headers.get('authorization');
+  const token = authToken || (authHeader?.startsWith('Bearer ') ? authHeader.substring(7) : null);
 
   // Check if route is protected
   const isProtectedRoute = protectedRoutes.some(route => pathname.startsWith(route));
@@ -96,7 +97,7 @@ export function middleware(request: NextRequest) {
         }
       }
 
-      // Add user info to headers for use in components
+      // Add user info to response headers for use in components
       const response = NextResponse.next();
       response.headers.set('x-user-id', payload.userId.toString());
       response.headers.set('x-user-role', payload.role);
@@ -125,7 +126,8 @@ export const config = {
      * - favicon.ico (favicon file)
      * - sw.js (service worker)
      * - manifest.json (PWA manifest)
+     * Also exclude files with extensions
      */
-    '/((?!api|_next/static|_next/image|favicon.ico|sw.js|manifest.json).*)',
+    '/((?!api|_next/static|_next/image|favicon.ico|sw.js|manifest.json|.*\\..*).*)',
   ],
 };
